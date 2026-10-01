@@ -191,6 +191,38 @@ input[type='radio'], input[type='checkbox'] { accent-color: #4b53d6; }
   .label.axis-name .t { font-size: 10px; }
 }
 
+/* ---------- Region card, region buttons and concept explanations ---------- */
+
+.region {
+  margin: 18px 0 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.region h3 { font-family: var(--serif); font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+.region p { margin: 0; font-size: 14px; line-height: 1.5; color: #33333a; }
+
+.jump { margin: 0 0 12px; }
+.jump-title { font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+.zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 4px; }
+.zones button { padding: 5px 4px; font-size: 12.5px; }
+.zones button[aria-pressed='true'] { background: #1b1b1f; border-color: #1b1b1f; color: #fff; }
+
+.concept { border-top: 1px solid var(--line); padding: 10px 0; }
+.concept:last-of-type { border-bottom: 1px solid var(--line); }
+.concept summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.concept p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: #33333a; }
+.concept dl { margin: 10px 0 0; }
+.concept dt { font-family: var(--serif); font-size: 16px; font-weight: 600; margin-top: 10px; }
+.concept dt span { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.concept dd { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: #33333a; }
+.concept .note { color: var(--muted); }
+
+/* Labels on the cube that open an explanation when clicked */
+.label.clickable { pointer-events: auto; cursor: pointer; }
+.label.clickable:hover .t { text-decoration: underline; }
+
 </style>
 <!-- Loads Three.js from the internet, so this file needs a connection but nothing to install. -->
 <script type="importmap">
@@ -235,12 +267,83 @@ const COLORS = {
 const AXIS_OUT = 1.3;   // how far the black axis arrows sit outside the cube
 const HOME_VIEW = { azimuth: 35, elevation: 20, distance: 13 };   // starting camera angle (degrees) and distance
 
-// The three sliders. "low" is the -1 end, "high" is the +1 end.
+// The three axes, in the same order as the original site: Governance, Economics, Culture.
+// "low" is the -1 end of the slider, "high" is the +1 end. The wording below is a short summary
+// of the definitions on the original site's Concept Explanations page.
 const AXES = [
-  { key: 'economics',  title: 'Economics',  low: 'Socialist',     high: 'Capitalist' },
-  { key: 'governance', title: 'Governance', low: 'Anarchist',     high: 'Authoritarian' },
-  { key: 'culture',    title: 'Culture',    low: 'Individualist', high: 'Collectivist' },
+  {
+    key: 'governance',
+    title: 'Governance',
+    low: 'Anarchist', lowSub: 'Decentralized',
+    high: 'Authoritarian', highSub: 'Centralized',
+    about:
+      'How power is distributed: held by a few at the top, or spread equally. It measures where authority sits, ' +
+      'not how much a government does or how harshly it behaves.',
+    lowText:
+      'Authority is spread equally among everyone in the system. That does not mean there is no organization, ' +
+      'only that nobody holds lasting power over anybody else.',
+    highText:
+      'Authority is concentrated in a hierarchy, up to a single top authority. What counts is how much power ' +
+      'the top holds, whether or not it chooses to use it.',
+    clauses: {
+      '-1': 'authority is decentralized, with little concentration of power',
+      '0': 'authority is partly concentrated and partly shared',
+      '1': 'authority is highly centralized',
+    },
+  },
+  {
+    key: 'economics',
+    title: 'Economics',
+    low: 'Socialist', lowSub: 'Planned Economy',
+    high: 'Capitalist', highSub: 'Free Market',
+    about:
+      'How much coercion shapes who owns property and what things are worth. It looks at how the economy is ' +
+      'run, not at the reasons behind it or the results it produces.',
+    lowText:
+      'Values and the distribution of property are set involuntarily, by a plan, rather than by the people ' +
+      'trading. It is judged only on how the economy is run, however fair its aims.',
+    highText:
+      'People own property and trade at prices they freely agree on. The only limit is that nobody may ' +
+      'restrict anyone else\'s economic freedom, so a perfectly free market can only ever be approximated.',
+    note: 'Most real economies mix both, which is what the Centrist middle of this axis represents.',
+    clauses: {
+      '-1': 'the economy is planned, with prices and property set involuntarily',
+      '0': 'the economy is mixed, partway between planned and free market',
+      '1': 'the economy is a free market of voluntary exchange',
+    },
+  },
+  {
+    key: 'culture',
+    title: 'Culture',
+    low: 'Individualist', lowSub: 'Nonconformity',
+    high: 'Collectivist', highSub: 'Conformity',
+    about: 'How strongly a society pushes people to conform in what they think, say and choose.',
+    lowText:
+      'Individual cultural freedom is protected, and pressure to conform, such as discrimination, is opposed. ' +
+      'Like a free market, this can only be approximated, because protecting everyone\'s freedom means limiting ' +
+      'attempts to take it away.',
+    highText:
+      'Group norms, traditions and beliefs are enforced as the standard, and people who do not conform are ' +
+      'criticized, marginalized or removed.',
+    clauses: {
+      '-1': 'cultural conformity is suppressed in favor of individual freedom',
+      '0': 'culture sits between conformity and nonconformity',
+      '1': 'cultural conformity is enforced',
+    },
+  },
 ];
+
+// Each axis is split into thirds, like the original site: -100% to -34% is the low pole,
+// -33% to 33% is Centrist, and 34% to 100% is the high pole. These cut-offs are somewhat arbitrary.
+const EDGE = 0.335;      // where the thirds meet, used to draw the highlighted region
+const ZONE_PICK = 0.67;  // where the "jump to a region" buttons put the slider
+
+function zoneOf(value) {
+  const percent = Math.round(value * 100);
+  if (percent <= -34) return -1;
+  if (percent >= 34) return 1;
+  return 0;
+}
 
 // ---------- 2. Build the page (the 3D stage and the control panel) ----------
 
@@ -257,11 +360,31 @@ const sliderHTML = ({ key, title, low, high }) => `
     <div class="ends"><span>${low}</span><output id="out-${key}" for="${key}">Centre</output><span>${high}</span></div>
   </div>`;
 
+const zonesHTML = ({ key, title, low, high }) => `
+  <div class="zones" role="group" aria-label="${title} region">
+    <button type="button" data-axis="${key}" data-zone="-1">${low}</button>
+    <button type="button" data-axis="${key}" data-zone="0">Centrist</button>
+    <button type="button" data-axis="${key}" data-zone="1">${high}</button>
+  </div>`;
+
+const conceptHTML = ({ key, title, low, lowSub, high, highSub, about, lowText, highText, note }) => `
+  <details class="concept" id="concept-${key}">
+    <summary>${title}: ${low} vs ${high}</summary>
+    <p>${about}</p>
+    <dl>
+      <dt>${low} <span>(${lowSub})</span></dt>
+      <dd>${lowText}</dd>
+      <dt>${high} <span>(${highSub})</span></dt>
+      <dd>${highText}</dd>
+    </dl>
+    ${note ? `<p class="note">${note}</p>` : ''}
+  </details>`;
+
 root.innerHTML = `
   <div id="stage"></div>
   <aside id="panel">
     <h1>Political Cube</h1>
-    <p class="hint">Drag to rotate. Scroll or pinch to zoom. Move the sliders to place your point inside the cube.</p>
+    <p class="hint">Drag to rotate. Scroll or pinch to zoom. Click any label on the cube to read what it means.</p>
 
     <h2>Your position</h2>
     ${AXES.map(sliderHTML).join('')}
@@ -271,7 +394,29 @@ root.innerHTML = `
       <div class="wing-ends"><span>Left Wing</span><span>Right Wing</span></div>
       <p id="wing-text"></p>
     </div>
+
+    <div class="region" aria-live="polite">
+      <h3 id="region-name"></h3>
+      <p id="region-text"></p>
+    </div>
+    <div class="jump">
+      <div class="jump-title">Jump to a region</div>
+      ${AXES.map(zonesHTML).join('')}
+    </div>
     <button type="button" id="reset-point">Reset point</button>
+
+    <h2>Concepts</h2>
+    <p class="hint">Each term is defined narrowly so the three axes stay separate: Governance is only about power, Economics only about coercion in trade, and Culture only about conformity.</p>
+    ${AXES.map(conceptHTML).join('')}
+    <details class="concept" id="concept-wing">
+      <summary>Left Wing vs Right Wing</summary>
+      <p>A traditional left-right line is roughly cooperation versus competition. On the cube it is the diagonal from the Left Wing corner (Anarchist, Socialist, Individualist) to the Right Wing corner (Authoritarian, Capitalist, Collectivist).</p>
+      <p>The percentage under the sliders is how far along that diagonal your point sits. It is the average of your three positions.</p>
+    </details>
+    <details class="concept" id="concept-regions">
+      <summary>How regions are named</summary>
+      <p>Each axis is split into thirds: from -100% to -34% is the low pole, from -33% to 33% is Centrist, and from 34% to 100% is the high pole. Together the thirds make 27 regions. The cut-offs are somewhat arbitrary, so treat region names as rough labels.</p>
+    </details>
 
     <h2>View</h2>
     <fieldset>
@@ -282,12 +427,13 @@ root.innerHTML = `
         <label><input type="radio" name="fill" value="none" /> None</label>
       </div>
     </fieldset>
+    <label class="toggle"><input type="checkbox" id="opt-region" checked /> Highlight your region</label>
     <label class="toggle"><input type="checkbox" id="opt-arrow" checked /> Left Wing to Right Wing arrow</label>
     <label class="toggle"><input type="checkbox" id="opt-grid" checked /> Grid lines</label>
     <label class="toggle"><input type="checkbox" id="opt-spin" /> Auto-rotate</label>
     <button type="button" id="reset-view">Reset view</button>
 
-    <p class="credit">Concept from <a href="https://politicube.netlify.app/" target="_blank" rel="noopener">politicube.netlify.app</a>.</p>
+    <p class="credit">Concept and definitions from <a href="https://politicube.netlify.app/" target="_blank" rel="noopener">politicube.netlify.app</a>. The descriptions here are short summaries; the full explanations are on that site.</p>
   </aside>`;
 
 const stage = root.querySelector('#stage');
@@ -388,7 +534,7 @@ const ANCHORS = {
   'below-right': [0, 1],
 };
 
-function makeLabel(title, subtitle, position, anchor = 'middle', extraClass = '') {
+function makeLabel(title, subtitle, position, anchor = 'middle', extraClass = '', onClick = null) {
   const el = document.createElement('div');
   el.className = `label ${anchor} ${extraClass}`.trim();
 
@@ -402,6 +548,20 @@ function makeLabel(title, subtitle, position, anchor = 'middle', extraClass = ''
     s.className = 's';
     s.textContent = subtitle;
     el.appendChild(s);
+  }
+
+  if (onClick) {
+    // Clickable labels (and keyboard-friendly): they open the matching explanation in the side panel
+    el.classList.add('clickable');
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.addEventListener('click', onClick);
+    el.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onClick();
+      }
+    });
   }
 
   const label = new CSS2DObject(el);
@@ -485,6 +645,33 @@ addWall(COLORS.wallCollectivist, [0, 0, -1], [0, 0, 0]);               // back w
 addWall(COLORS.wallAnarchist, [0, -1, 0], [-Math.PI / 2, 0, 0]);       // floor      (Anarchist side)
 scene.add(walls);
 
+// 5f. Highlight for the region your point is in (one of the 27 boxes made by splitting each axis into thirds)
+const regionBox = new THREE.Group();
+const regionFill = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, depthWrite: false })
+);
+const regionEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
+  new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.85, depthTest: false })
+);
+regionFill.renderOrder = 5;
+regionEdges.renderOrder = 6;
+regionBox.add(regionFill, regionEdges);
+scene.add(regionBox);
+
+// The low third, middle third or high third of an axis, as a [from, to] range
+const zoneRange = (zone) => (zone < 0 ? [-1, -EDGE] : zone > 0 ? [EDGE, 1] : [-EDGE, EDGE]);
+
+// zones = [governance, economics, culture], each -1, 0 or +1
+function applyRegionBox(zones) {
+  const [y0, y1] = zoneRange(zones[0]);   // governance runs up the y axis
+  const [x0, x1] = zoneRange(zones[1]);   // economics runs along the x axis
+  const [c0, c1] = zoneRange(zones[2]);   // culture runs along z, flipped: Individualist is toward you
+  regionBox.position.set((x0 + x1) / 2, (y0 + y1) / 2, -(c0 + c1) / 2);
+  regionBox.scale.set(x1 - x0, y1 - y0, c1 - c0);
+}
+
 // ---------- 6. Axis arrows and labels ----------
 
 const axisArrow = { color: 0x111111, headLength: 0.2, headRadius: 0.06, shaftRadius: 0.014 };
@@ -497,19 +684,19 @@ scene.add(
 const addLabel = (...args) => scene.add(makeLabel(...args));
 
 // Economics (along the bottom front edge)
-addLabel('Socialist', '(Planned Economy)', v3(-0.6, -AXIS_OUT, 1), 'below');
-addLabel('Capitalist', '(Free Market)', v3(0.6, -AXIS_OUT, 1), 'below');
-addLabel('Economics', null, v3(0, -AXIS_OUT, 1), 'middle', 'axis-name');
+addLabel('Socialist', '(Planned Economy)', v3(-0.6, -AXIS_OUT, 1), 'below', '', () => showConcept('economics'));
+addLabel('Capitalist', '(Free Market)', v3(0.6, -AXIS_OUT, 1), 'below', '', () => showConcept('economics'));
+addLabel('Economics', null, v3(0, -AXIS_OUT, 1), 'middle', 'axis-name', () => showConcept('economics'));
 
 // Culture (along the bottom right edge, front to back)
-addLabel('Individualist', '(Nonconformity)', v3(AXIS_OUT, -AXIS_OUT, 1), 'below-right');
-addLabel('Collectivist', '(Conformity)', v3(AXIS_OUT, -AXIS_OUT, -1), 'right');
-addLabel('Culture', null, v3(AXIS_OUT, -AXIS_OUT, 0), 'middle', 'axis-name');
+addLabel('Individualist', '(Nonconformity)', v3(AXIS_OUT, -AXIS_OUT, 1), 'below-right', '', () => showConcept('culture'));
+addLabel('Collectivist', '(Conformity)', v3(AXIS_OUT, -AXIS_OUT, -1), 'right', '', () => showConcept('culture'));
+addLabel('Culture', null, v3(AXIS_OUT, -AXIS_OUT, 0), 'middle', 'axis-name', () => showConcept('culture'));
 
 // Governance (up the front left edge)
-addLabel('Authoritarian', '(Centralized)', v3(-AXIS_OUT, 0.8, 1), 'left');
-addLabel('Anarchist', '(Decentralized)', v3(-AXIS_OUT, -0.8, 1), 'left');
-addLabel('Governance', null, v3(-AXIS_OUT, 0, 1), 'middle', 'axis-name');
+addLabel('Authoritarian', '(Centralized)', v3(-AXIS_OUT, 0.8, 1), 'left', '', () => showConcept('governance'));
+addLabel('Anarchist', '(Decentralized)', v3(-AXIS_OUT, -0.8, 1), 'left', '', () => showConcept('governance'));
+addLabel('Governance', null, v3(-AXIS_OUT, 0, 1), 'middle', 'axis-name', () => showConcept('governance'));
 
 // The big diagonal arrow from the Left Wing corner to the Right Wing corner
 const LEFT_CORNER = v3(-1, -1, 1);
@@ -519,8 +706,8 @@ const wingArrow = makeArrow(LEFT_CORNER, RIGHT_CORNER, {
 });
 const pointAlong = (t) => new THREE.Vector3().lerpVectors(LEFT_CORNER, RIGHT_CORNER, t);
 wingArrow.group.add(
-  makeLabel('Left Wing', '(Cooperative)', pointAlong(0.2), 'above', 'wing'),
-  makeLabel('Right Wing', '(Competitive)', pointAlong(0.8), 'above', 'wing')
+  makeLabel('Left Wing', '(Cooperative)', pointAlong(0.2), 'above', 'wing', () => showConcept('wing')),
+  makeLabel('Right Wing', '(Competitive)', pointAlong(0.8), 'above', 'wing', () => showConcept('wing'))
 );
 scene.add(wingArrow.group);
 
@@ -603,6 +790,31 @@ function updateFromState() {
   $('#wing-tick').style.left = `${towardRight * 100}%`;
   $('#wing-text').textContent =
     `${Math.round(towardRight * 100)}% of the way from Left Wing (Cooperative) to Right Wing (Competitive).`;
+
+  // Which of the 27 regions are you in? (-1 = low pole, 0 = Centrist, +1 = high pole, for each axis)
+  const zones = AXES.map(({ key }) => zoneOf(state[key]));
+  const names = AXES.map(({ low, high }, i) => (zones[i] < 0 ? low : zones[i] > 0 ? high : 'Centrist'));
+  const allCentrist = zones.every((zone) => zone === 0);
+
+  const clauses = AXES.map((axis, i) => axis.clauses[zones[i]]);
+  const sentence = `${clauses[0][0].toUpperCase()}${clauses[0].slice(1)}; ${clauses[1]}; and ${clauses[2]}.`;
+
+  $('#region-name').textContent = allCentrist ? 'Centrist' : names.join('\u2013');
+  $('#region-text').textContent = allCentrist ? `Middle ground on every axis. ${sentence}` : sentence;
+
+  applyRegionBox(zones);
+
+  root.querySelectorAll('.zones button').forEach((button) => {
+    const axisIndex = AXES.findIndex(({ key }) => key === button.dataset.axis);
+    button.setAttribute('aria-pressed', String(zones[axisIndex] === Number(button.dataset.zone)));
+  });
+}
+
+// Move one axis to a value from -1 to +1 (updates the slider and everything else)
+function setAxis(key, value) {
+  state[key] = value;
+  $(`#${key}`).value = Math.round(value * 100);
+  updateFromState();
 }
 
 for (const { key } of AXES) {
@@ -620,6 +832,21 @@ $('#reset-point').addEventListener('click', () => {
   updateFromState();
 });
 
+root.querySelectorAll('.zones button').forEach((button) => {
+  button.addEventListener('click', () => {
+    setAxis(button.dataset.axis, Number(button.dataset.zone) * ZONE_PICK);
+  });
+});
+
+// Open one explanation in the side panel and scroll to it (used when you click a label on the cube)
+function showConcept(id) {
+  const details = $(`#concept-${id}`);
+  if (!details) return;
+  details.open = true;
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  details.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+}
+
 function applyFill(mode) {
   gradientFill.visible = mode === 'gradient';
   setVisible(walls, mode === 'walls');
@@ -630,6 +857,7 @@ function applyFill(mode) {
 root.querySelectorAll('input[name="fill"]').forEach((radio) => {
   radio.addEventListener('change', () => applyFill(radio.value));
 });
+$('#opt-region').addEventListener('change', (event) => setVisible(regionBox, event.target.checked));
 $('#opt-arrow').addEventListener('change', (event) => setVisible(wingArrow.group, event.target.checked));
 $('#opt-grid').addEventListener('change', (event) => setVisible(grid, event.target.checked));
 $('#opt-spin').addEventListener('change', (event) => { controls.autoRotate = event.target.checked; });
