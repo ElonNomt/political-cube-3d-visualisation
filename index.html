@@ -223,6 +223,35 @@ input[type='radio'], input[type='checkbox'] { accent-color: #4b53d6; }
 .label.clickable { pointer-events: auto; cursor: pointer; }
 .label.clickable:hover .t { text-decoration: underline; }
 
+/* ---------- Adaptive test button (top of the control panel) and watermark (corner of the cube display) ---------- */
+
+.test-button {
+  display: block;
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #1b1b1f;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.test-button:hover { background: #33333a; }
+
+.watermark {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  z-index: 1;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
+}
+
 </style>
 <!-- Loads Three.js from the internet, so this file needs a connection but nothing to install. -->
 <script type="importmap">
@@ -381,8 +410,9 @@ const conceptHTML = ({ key, title, low, lowSub, high, highSub, about, lowText, h
   </details>`;
 
 root.innerHTML = `
-  <div id="stage"></div>
+  <div id="stage"><span class="watermark">by chinnomt</span></div>
   <aside id="panel">
+    <a class="test-button" href="https://politicube.netlify.app/adaptivetest" target="_blank" rel="noopener">Take the adaptive test &#8599;</a>
     <h1>Political Cube</h1>
     <p class="hint">Drag to rotate. Scroll or pinch to zoom. Click any label on the cube to read what it means.</p>
 

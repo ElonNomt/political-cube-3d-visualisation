@@ -143,8 +143,9 @@ const conceptHTML = ({ key, title, low, lowSub, high, highSub, about, lowText, h
   </details>`;
 
 root.innerHTML = `
-  <div id="stage"></div>
+  <div id="stage"><span class="watermark">by chinnomt</span></div>
   <aside id="panel">
+    <a class="test-button" href="https://politicube.netlify.app/adaptivetest" target="_blank" rel="noopener">Take the adaptive test &#8599;</a>
     <h1>Political Cube</h1>
     <p class="hint">Drag to rotate. Scroll or pinch to zoom. Click any label on the cube to read what it means.</p>
 
